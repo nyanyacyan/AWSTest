@@ -38,7 +38,7 @@ def lambda_handler():
 
             # 検索欄のidを取得
             element = WebDriverWait(driver, 6).until(
-                EC.presence_of_element_located((By.ID, "keyword"))
+                EC.EC.element_to_be_clickable((By.ID, "keyword"))
             )
 
             # テキストボックスに検索ワードを入力

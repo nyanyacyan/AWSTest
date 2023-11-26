@@ -5,6 +5,7 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 import csv
 import logging
+import io
 
 # ローカルデバック時に使用
 # from selenium.webdriver.chrome.service import Service
@@ -82,6 +83,7 @@ def lambda_handler(event, context):
             # 現在のページにある価格を全てリスト化する。
             all_ddtag_list = [dd_tag.text for dd_tag in all_ddtags]
             first_ddtag = all_ddtag_list[0]
+            print(first_ddtag)
 
             # h2タグを見つける
             # 見つけるまで最大6秒、動的待機
@@ -92,20 +94,20 @@ def lambda_handler(event, context):
             # 商品カタログ名
             all_title_list = [title.text for title in all_titles]
             first_title = all_title_list[0]
+            print(first_title)
 
             # 辞書にまとめる
             jan_details[jan[0]] = (first_title, first_ddtag)
 
-    # CSVファイルの生成
-    with open('/tmp/output.csv', 'w', newline='', encoding='utf-8') as file:
-        writer = csv.writer(file)
-        for index, (key, (title, price)) in enumerate(jan_details.items(), start=1):
-            writer.writerow([index, key, title, price])
+        output = io.StringIO()
+        writer = csv.writer(output)
+        writer.writerow(['Index', 'JANコード', '商品名', '価格'])
+        for index, (jan, (first_title, first_ddtag)) in enumerate(jan_details.items(), start=1):
+            writer.writerow([index, jan, first_title, first_ddtag])
 
-    # CSVファイルの読み込み
-    with open('/tmp/output.csv', 'r', encoding='utf-8') as file:
-        csv_data = file.read()
-    
+
+        # CSVデータを取得
+        csv_data = output.getvalue()
     
     # WebDriverを閉じる
     browser.quit()

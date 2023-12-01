@@ -13,8 +13,80 @@ import json
 
 
 def lambda_handler(event, context):
+        # エンドポイントのパスを取得
+    path = event['path']
+
+    # 発火エンドポイントの処理
+    if path == '/start':
+        return handle_start_execution(event)
+
+    # 状態維持エンドポイントの処理
+    elif path == '/status':
+        return handle_check_status(event)
+
+    # 未知のエンドポイントの場合
+    else:
+        return {'statusCode': 404, 'body': 'Not Found'}
+
+
+# 発火エンドポイントの処理関数
+def handle_start_execution(event):
     logger = logging.getLogger()
     logger.setLevel(logging.INFO)
+
+    logger.info(f"処理スタート")
+
+    url = "https://www.petpochitto.com/"
+
+    options = webdriver.ChromeOptions()
+    options.add_argument("--headless")
+    options.add_argument("--disable-gpu")
+    options.add_argument("--hide-scrollbars")
+    options.add_argument("--single-process")
+    options.add_argument("--ignore-certificate-errors")
+    options.add_argument("--window-size=1200x1000")  # サイズを大きくすることでsend_keysでの
+    options.add_argument("--no-sandbox")
+    options.add_argument("--homedir=/tmp")
+    options.binary_location = "/opt/headless/headless-chromium"
+
+    logger.info(f"ブラウザのパスを指定")
+
+    browser = webdriver.Chrome(
+        # chromedriverのパスを指定
+        executable_path="/opt/headless/chromedriver",
+        options=options
+    )
+
+    logger.info(f"ブラウザを開く")
+
+    try:
+        browser.get(url)
+        start_response = browser.title
+    except Exception as e:
+        logger.error(f"エラー発生: {e}")
+        return{
+            'statusCode': 500,
+            'headers': {'Content-Type': 'application/json'},
+            'body': json.dumps({"error": str(e)})
+        }
+    finally:
+        browser.quit()
+        logger.info(f"処理終了")
+
+    return{
+        'statusCode': 200,
+        'headers': {'Content-Type': 'application/json'},
+        'body': json.dumps({"title": start_response})
+    }
+
+# 〜〜〜〜〜〜〜〜〜〜〜〜〜〜〜〜〜〜〜〜〜〜〜〜〜〜
+
+# 状態維持エンドポイントの処理関数
+def handle_check_status(event):
+    logger = logging.getLogger()
+    logger.setLevel(logging.INFO)
+
+    logger.info(f"処理スタート")
 
     url = "https://www.petpochitto.com/"
 
@@ -26,13 +98,12 @@ def lambda_handler(event, context):
     options.add_argument("--hide-scrollbars")
     options.add_argument("--single-process")
     options.add_argument("--ignore-certificate-errors")
-    options.add_argument("--window-size=1200x1000")  # サイズを大きくすることでsend_keysでの入力ができるようになる。
+    options.add_argument("--window-size=1200x1000")  # サイズを大きくすることでsend_keysでの
     options.add_argument("--no-sandbox")
     options.add_argument("--homedir=/tmp")
     options.binary_location = "/opt/headless/headless-chromium"
 
-
-
+    logger.info(f"ブラウザのパスを指定")
 
     browser = webdriver.Chrome(
         # chromedriverのパスを指定
@@ -40,12 +111,11 @@ def lambda_handler(event, context):
         options=options
     )
 
+    logger.info(f"ブラウザを開く")
 
     # URLを開く
     browser.get(url)
 
-    # URLのロード状況をログに記録
-    logger.info("Opened URL: " + url)
 
     # リクエストのBODYを取得
     # テスト用
@@ -61,7 +131,7 @@ def lambda_handler(event, context):
     logger.info("ページロードを待機しています...")
 
     # ページが完全にロードされるのを待つ
-    WebDriverWait(browser, 10).until(
+    WebDriverWait(browser, 3).until(
         lambda browser: browser.execute_script('return document.readyState') == 'complete'
     )
 
@@ -108,35 +178,39 @@ def lambda_handler(event, context):
 
         # 検索ボタンを探す
         # クリックができるようになるまで最大6秒、動的待機
-        search_buttan = WebDriverWait(browser, 6).until(
-            EC.presence_of_element_located((By.CSS_SELECTOR, ".__button.c-button"))
-        )
+        search_buttan = browser.find_element_by_css_selector(".__button.c-button")
 
+        logger.info("検索ボタンを探すことを開始")
 
         # 検索ボタンをクリック
         search_buttan.click()
 
+        logger.info("検索ボタンをクリック")
+
         # ddタグを見つける
         # 見つけるまで最大6秒、動的待機
-        all_ddtags = WebDriverWait(browser, 6).until(
+        all_ddtags = WebDriverWait(browser, 3).until(
             EC.presence_of_all_elements_located((By.TAG_NAME, 'dd'))
         )
+        logger.info("ddタグリスト作成")
 
         # 現在のページにある価格を全てリスト化する。
         all_ddtag_list = [dd_tag.text for dd_tag in all_ddtags]
         lambda_price = all_ddtag_list[0]
-        print(lambda_price)
+        logger.info(f"{lambda_price}")
 
         # h2タグを見つける
         # 見つけるまで最大6秒、動的待機
         all_titles = WebDriverWait(browser, 6).until(
             EC.presence_of_all_elements_located((By.TAG_NAME, 'h2'))
         )
+        logger.info("h2タグリスト作成")
+        
 
         # 商品カタログ名
         all_title_list = [title.text for title in all_titles]
         lambda_product_name = all_title_list[0]
-        print(lambda_product_name)
+        logger.info(f"{lambda_product_name}")
 
         # jsonオブジェクトの作成
         response_data = {
@@ -154,7 +228,7 @@ def lambda_handler(event, context):
     # WebDriverを閉じる
     browser.quit()
 
-    # CSVデータをレスポンスとして返す
+    # jsonデータをレスポンスとして返す
     return {
         'statusCode': 200,
         'headers': {

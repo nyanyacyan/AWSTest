@@ -3,6 +3,7 @@ from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
+from selenium.common.exceptions import TimeoutException
 import logging
 import json
 
@@ -17,20 +18,20 @@ def lambda_handler(event, context):
 
     url = "https://www.petpochitto.com/"
 
+    json_response = ""  # 変数の初期化
+
     options = webdriver.ChromeOptions()
     options.add_argument("--headless")
     options.add_argument("--disable-gpu")
     options.add_argument("--hide-scrollbars")
     options.add_argument("--single-process")
     options.add_argument("--ignore-certificate-errors")
-    options.add_argument("--window-size=880x996")
+    options.add_argument("--window-size=1200x1000")  # サイズを大きくすることでsend_keysでの入力ができるようになる。
     options.add_argument("--no-sandbox")
     options.add_argument("--homedir=/tmp")
     options.binary_location = "/opt/headless/headless-chromium"
 
-    # ローカルデバック時に使用
-    # service = Service(ChromeDriverManager().install())
-    # browser = webdriver.Chrome(service=service)
+
 
 
     browser = webdriver.Chrome(
@@ -47,19 +48,63 @@ def lambda_handler(event, context):
     logger.info("Opened URL: " + url)
 
     # リクエストのBODYを取得
-    request_body = event.get('body')
+    # テスト用
+    # Lambdaのテストイベントでは、テストイベントのJSONオブジェクト自体が event オブジェクトとして渡されます。そのため、event.get('body') は None を返す
+    
+    request_body = event.get('local_jan_code')
+
+    # デプロイ用
+    # request_body = event.get('body')
+
+    logger.info("リクエストボディが存在します: %s", request_body)
+
+    logger.info("ページロードを待機しています...")
+
+    # ページが完全にロードされるのを待つ
+    WebDriverWait(browser, 10).until(
+        lambda browser: browser.execute_script('return document.readyState') == 'complete'
+    )
+
+    logger.info("ページが完全にロードされました。")
 
     if request_body:
-        request_data = json.loads(event["body"])  # jsonを解析
+        try:
+            request_data = json.loads(request_body)  # jsonを解析
+            # jan = request_data["local_jan_code"]  辞書からjanだけを抽出する
+            request_data_str = str(request_data)
+            logger.info(f"解析完了: {request_data_str}")
+            logger.info("Opened URL: " + url)
 
-        jan = request_data["local_jan_code"]
+        except json.JSONDecodeError as e:
+            logger.error(f"解析エラー:{e}")
 
-        element = WebDriverWait(browser, 60).until(
-            EC.element_to_be_clickable((By.ID, "keyword"))
-        )
+        try:
+            elements = browser.find_elements_by_id("keyword")
+            if elements:
+                element = elements[0] 
+                name_attribute = element.get_attribute('name')
+                logger.info(f"ID:keywordをサーチ済み")
+                logger.info(f"Element tag name: {element.tag_name}")
+                logger.info(f"Element name attribute: {name_attribute}")
+                logger.info(f"{request_data_str}")
+                # logger.info(f"request_dataのデータ型: {type(request_data_str)}")
+
+            else:
+                logger.info(f"ID:keywordが見つからない")
+
+        except TimeoutException:
+            logger.error(f"設定した時間で見つけられない。")
 
         # テキストボックスに検索ワードを入力
-        element.send_keys(jan)
+        try:
+            if element.is_displayed():
+                element.send_keys(request_data_str)
+                logger.info("キーワード入力に成功")
+            else:
+                logger.info("要素が表示されていません")
+
+        except Exception as e:
+            logger.error(f"キーワード入力失敗: {e}")
 
         # 検索ボタンを探す
         # クリックができるようになるまで最大6秒、動的待機
@@ -99,12 +144,13 @@ def lambda_handler(event, context):
             "lambda_price": lambda_price
         }
 
-
-
         # jsonへと変換
         json_response = json.dumps(response_data)
 
-    
+    else:
+        logger.error("リクエストボディがありません。")
+        json_response = json.dumps({"error": "リクエストボディがありません。"})
+
     # WebDriverを閉じる
     browser.quit()
 

@@ -13,41 +13,6 @@ import json
 
 
 def lambda_handler(event, context):
-        # エンドポイントのパスを取得
-    path = event['path']
-
-    # 発火エンドポイントの処理
-    if path == '/start':
-        return handle_start_execution(event)
-
-    # 状態維持エンドポイントの処理
-    elif path == '/status':
-        return handle_check_status(event)
-
-    # 未知のエンドポイントの場合
-    else:
-        return {'statusCode': 404, 'body': 'Not Found'}
-
-
-# 発火エンドポイントの処理関数
-def handle_start_execution(event):
-    logger = logging.getLogger()
-    logger.setLevel(logging.INFO)
-
-    logger.info(f"処理スタート")
-
-    logger.info(f"処理完了")
-
-    return{
-        'statusCode': 200,
-        'headers': {'Content-Type': 'application/json'},
-        'body': json.dumps({"message": "処理が成功しました"})
-    }
-
-# 〜〜〜〜〜〜〜〜〜〜〜〜〜〜〜〜〜〜〜〜〜〜〜〜〜〜
-
-# 状態維持エンドポイントの処理関数
-def handle_check_status(event):
     logger = logging.getLogger()
     logger.setLevel(logging.INFO)
 

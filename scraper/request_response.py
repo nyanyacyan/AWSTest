@@ -30,7 +30,7 @@ with open('aws_test.csv') as f:
         print(json_code)
 
         #  lambda状態取得APIにリクエスト
-        status_response = requests.post(' https://dfoou098ee.execute-api.ap-northeast-1.amazonaws.com/product/, data=json_code')
+        status_response = requests.post(' https://cgyk8mo97h.execute-api.ap-northeast-1.amazonaws.com/prod, data=json_code')
 
         # responseがあった後のデータを受け取る
         # 商品名と価格

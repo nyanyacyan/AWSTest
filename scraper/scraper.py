@@ -36,47 +36,12 @@ def handle_start_execution(event):
 
     logger.info(f"処理スタート")
 
-    url = "https://www.petpochitto.com/"
-
-    options = webdriver.ChromeOptions()
-    options.add_argument("--headless")
-    options.add_argument("--disable-gpu")
-    options.add_argument("--hide-scrollbars")
-    options.add_argument("--single-process")
-    options.add_argument("--ignore-certificate-errors")
-    options.add_argument("--window-size=1200x1000")  # サイズを大きくすることでsend_keysでの
-    options.add_argument("--no-sandbox")
-    options.add_argument("--homedir=/tmp")
-    options.binary_location = "/opt/headless/headless-chromium"
-
-    logger.info(f"ブラウザのパスを指定")
-
-    browser = webdriver.Chrome(
-        # chromedriverのパスを指定
-        executable_path="/opt/headless/chromedriver",
-        options=options
-    )
-
-    logger.info(f"ブラウザを開く")
-
-    try:
-        browser.get(url)
-        start_response = browser.title
-    except Exception as e:
-        logger.error(f"エラー発生: {e}")
-        return{
-            'statusCode': 500,
-            'headers': {'Content-Type': 'application/json'},
-            'body': json.dumps({"error": str(e)})
-        }
-    finally:
-        browser.quit()
-        logger.info(f"処理完了")
+    logger.info(f"処理完了")
 
     return{
         'statusCode': 200,
         'headers': {'Content-Type': 'application/json'},
-        'body': json.dumps({"title": start_response})
+        'body': json.dumps({"message": "処理が成功しました"})
     }
 
 # 〜〜〜〜〜〜〜〜〜〜〜〜〜〜〜〜〜〜〜〜〜〜〜〜〜〜

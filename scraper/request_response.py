@@ -7,7 +7,7 @@ goods_status_details = {}
 
 start_json = {"path": "/start"}
 #  Lambda発火APIにリクエスト
-start_response = requests.post(' Lambda発火API用のurl, json=start_json')
+start_response = requests.post(' https://ercldru20j.execute-api.ap-northeast-1.amazonaws.com/prod, json=start_json')
 
 # responseがあった後のデータを受け取る
 # 商品名と価格

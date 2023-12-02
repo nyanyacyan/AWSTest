@@ -71,7 +71,7 @@ def handle_start_execution(event):
         }
     finally:
         browser.quit()
-        logger.info(f"処理終了")
+        logger.info(f"処理完了")
 
     return{
         'statusCode': 200,

@@ -18,7 +18,6 @@ with open('aws_test.csv') as f:
     jans = csv.reader(f)
 
     for jan in jans:
-        print(jans)
         json_code = json.dumps({"local_jan_code": jan[0].strip()})  # jsonファイルに置き換え
         print(json_code)
 
@@ -28,10 +27,10 @@ with open('aws_test.csv') as f:
         try:
             first_response = requests.post(first_api_url, data=json_code)
             # レスポンス情報をログに記録
-            logging.info(f"Received response: {first_response.status_code}, {first_response.text}")
+            logging.info(f"Lambda発火APIからのレスOK")
         except requests.RequestException as e:
             # エラー情報をログに記録
-            logging.error(f"Request failed: {e}")
+            logging.error(f"レスエラー: {e}")
             continue
 
 
@@ -39,7 +38,7 @@ with open('aws_test.csv') as f:
         # Lambda発火APIからのレスポンス処理→レスポンスから実行ARNを抽出
         if first_response.status_code == 200:
             first_response_data = first_response.json()  # 実行Arn取得
-            print("Lambda発火APIからのレスOK")
+            # print("Lambda発火APIからのレスOK")
 
             execution_arn = first_response_data["executionArn"]
 
@@ -54,6 +53,8 @@ with open('aws_test.csv') as f:
             # 開始時間の記録
             start_time = time.time()
 
+            print("lambda関数からのレスポンス待ち", end="")
+
             # 特定の処理があるまではずっとループ処理する→statusがRUNNINGからSUCCEEDEDになるまで
             while True:
                 # Lambda状態取得APIにリクエスト
@@ -65,16 +66,30 @@ with open('aws_test.csv') as f:
                     second_response_data = second_response.json() # jsonファイルを解析してリストに変換
                     # print(second_response_data)  # レスポンスの詳細
 
-                    if second_response_data.get('status') == 'RUNNING':
-                        print("lambda関数からのレスポンス待ち")
-
-                    # ステータスチェック
+                    # ステータスがSUCCEEDEDになってからの処理　　各値を抽出
                     if second_response_data.get('status') == 'SUCCEEDED':
                         output_dict = second_response_data.get('output')
                         output_data = json.loads(output_dict)
                         body_dict = output_data.get('body')
-                        print(f"スクレイピング成功:{body_dict}")
+
+                        # 各値
+                        lambda_product_name = body_dict.get('lambda_product_name')
+                        lambda_price = body_dict.get('lambda_price')
+
+                        # 辞書に追加
+                        goods_status_details[jan[0]] = (lambda_product_name, lambda_price)
+
+                        print(f"スクレイピング成功:{lambda_product_name},{lambda_price}")
                         break
+
+                    # RUNNINGの際に進捗がわかるように処理
+                    elif second_response_data.get('status') == 'RUNNING':
+                        current_time = time.time()
+                        if current_time - start_time >= 10:  # 10秒ごとにチェック
+                            print(".", end="", flush=True)  # flush=Trueは現在の行に '.' を追加
+                            start_time = current_time  # 次の10秒間のカウントを開始
+                        
+
                 else:
                     # Lambda状態取得APIエラー時の処理
                     print("Lambda状態取得APIエラー:", second_response.text)

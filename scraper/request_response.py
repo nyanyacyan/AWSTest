@@ -5,7 +5,7 @@ import logging
 import time
 
 # 最大待機時間と待機間隔（秒）
-MAX_WAIT_TIME = 300
+MAX_WAIT_TIME = 180
 POLL_INTERVAL = 10
 
 logging.basicConfig(level=logging.INFO)
@@ -39,7 +39,7 @@ with open('aws_test.csv') as f:
         # Lambda発火APIからのレスポンス処理→レスポンスから実行ARNを抽出
         if first_response.status_code == 200:
             first_response_data = first_response.json()  # 実行Arn取得
-            print(first_response_data)
+            print("Lambda発火APIからのレスOK")
 
             execution_arn = first_response_data["executionArn"]
 
@@ -54,6 +54,7 @@ with open('aws_test.csv') as f:
             # 開始時間の記録
             start_time = time.time()
 
+            # 特定の処理があるまではずっとループ処理する→statusがRUNNINGからSUCCEEDEDになるまで
             while True:
                 # Lambda状態取得APIにリクエスト
                 second_response = requests.post(second_api_url, json=second_request_data)
@@ -62,27 +63,18 @@ with open('aws_test.csv') as f:
                 # 商品名と価格
                 if second_response.status_code == 200:
                     second_response_data = second_response.json() # jsonファイルを解析してリストに変換
-                    print(second_response_data)
-                    if isinstance(second_response_data.get('body'), str):
-                        body_data = json.loads(second_response_data.get('body'))
+                    # print(second_response_data)  # レスポンスの詳細
 
-                    # if second_response_data.get('status') == 'SUCCEEDED':
-                    #     body_data = json.loads(second_response_data.get('body'))
-                    #     print("ボディのタイプは", type(body_data))
+                    if second_response_data.get('status') == 'RUNNING':
+                        print("lambda関数からのレスポンス待ち")
 
-                        if "lambda_product_name" in body_data and "body_data" in second_response_data:
-
-                            product_name = body_data["lambda_product_name"]
-                            price = body_data["lambda_price"]
-
-                            print(product_name, price)
-
-                            goods_status_details[jan[0]] = (product_name, price)  # 辞書作成
-                            break
-                        else:
-                            logging.info("必要なキーがレスポンスに存在しません")
-                    else:
-                        logging.info("Lambda状態取得APIはまだ完了していません")
+                    # ステータスチェック
+                    if second_response_data.get('status') == 'SUCCEEDED':
+                        output_dict = second_response_data.get('output')
+                        output_data = json.loads(output_dict)
+                        body_dict = output_data.get('body')
+                        print(f"スクレイピング成功:{body_dict}")
+                        break
                 else:
                     # Lambda状態取得APIエラー時の処理
                     print("Lambda状態取得APIエラー:", second_response.text)

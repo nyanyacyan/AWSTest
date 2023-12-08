@@ -1,23 +1,16 @@
 import csv
 import json
 import requests
+import logging
+import time
+
+# 最大待機時間と待機間隔（秒）
+MAX_WAIT_TIME = 300
+POLL_INTERVAL = 10
+
+logging.basicConfig(level=logging.INFO)
 
 goods_status_details = {}
-
-
-start_json = {"path": "/start"}
-#  Lambda発火APIにリクエスト
-start_response = requests.post(' https://ercldru20j.execute-api.ap-northeast-1.amazonaws.com/prod, json=start_json')
-
-# responseがあった後のデータを受け取る
-# 商品名と価格
-if start_response.status_code == 200:
-    response_data = start_response.json() # jsonファイルを解析してリストに変換
-    print(response_data)
-
-else:
-    print(f"エラー: {start_response.status_code}")
-
 
 
 # Lambda状態取得APIの処理を実施
@@ -26,27 +19,85 @@ with open('aws_test.csv') as f:
 
     for jan in jans:
         print(jans)
-        json_code = json.dumps({"path": "/start","local_jan_code": jan[0]})  # jsonファイルに置き換え
+        json_code = json.dumps({"local_jan_code": jan[0].strip()})  # jsonファイルに置き換え
         print(json_code)
 
-        #  lambda状態取得APIにリクエスト
-        status_response = requests.post(' https://cgyk8mo97h.execute-api.ap-northeast-1.amazonaws.com/prod, data=json_code')
+        #  lambda発火APIのURL
+        first_api_url = "https://1433bwhqog.execute-api.ap-northeast-1.amazonaws.com/prod/status"
+        
+        try:
+            first_response = requests.post(first_api_url, data=json_code)
+            # レスポンス情報をログに記録
+            logging.info(f"Received response: {first_response.status_code}, {first_response.text}")
+        except requests.RequestException as e:
+            # エラー情報をログに記録
+            logging.error(f"Request failed: {e}")
+            continue
 
-        # responseがあった後のデータを受け取る
-        # 商品名と価格
-        if status_response.status_code == 200:
-            response_data = status_response.json() # jsonファイルを解析してリストに変換
-            print(response_data)
 
-            product_name = response_data["lambda_product_name"]
-            price = response_data["lambda_price"]
 
-            print(product_name, price)
+        # Lambda発火APIからのレスポンス処理→レスポンスから実行ARNを抽出
+        if first_response.status_code == 200:
+            first_response_data = first_response.json()  # 実行Arn取得
+            print(first_response_data)
 
-            goods_status_details[jan[0]] = (product_name, price)  # 辞書作成
+            execution_arn = first_response_data["executionArn"]
 
+            # Lambda状態取得APIのURL
+            second_api_url = "https://202g7nx6k4.execute-api.ap-northeast-1.amazonaws.com/prod/status-check"
+
+            second_request_data = {
+                "executionArn": execution_arn
+            }
+
+
+            # 開始時間の記録
+            start_time = time.time()
+
+            while True:
+                # Lambda状態取得APIにリクエスト
+                second_response = requests.post(second_api_url, json=second_request_data)
+
+                # Lambda状態取得APIからのレスポンス処理
+                # 商品名と価格
+                if second_response.status_code == 200:
+                    second_response_data = second_response.json() # jsonファイルを解析してリストに変換
+                    print(second_response_data)
+                    if isinstance(second_response_data.get('body'), str):
+                        body_data = json.loads(second_response_data.get('body'))
+
+                    # if second_response_data.get('status') == 'SUCCEEDED':
+                    #     body_data = json.loads(second_response_data.get('body'))
+                    #     print("ボディのタイプは", type(body_data))
+
+                        if "lambda_product_name" in body_data and "body_data" in second_response_data:
+
+                            product_name = body_data["lambda_product_name"]
+                            price = body_data["lambda_price"]
+
+                            print(product_name, price)
+
+                            goods_status_details[jan[0]] = (product_name, price)  # 辞書作成
+                            break
+                        else:
+                            logging.info("必要なキーがレスポンスに存在しません")
+                    else:
+                        logging.info("Lambda状態取得APIはまだ完了していません")
+                else:
+                    # Lambda状態取得APIエラー時の処理
+                    print("Lambda状態取得APIエラー:", second_response.text)
+                    continue  # 次の反復へ
+
+                if time.time() - start_time > MAX_WAIT_TIME:
+                    print("タイムアウト：処理が完了しませんでした。")
+                    break
+
+                time.sleep(POLL_INTERVAL)
         else:
-            print(f"エラー: {status_response.status_code}")
+            # Lambda発火APIエラー時の処理
+            print("Lambda発火APIエラー:", first_response.text)
+            continue
+
 
 # csv出力
 with open('output.csv', 'w', newline='') as csvfile:

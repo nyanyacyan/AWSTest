@@ -148,12 +148,12 @@ def lambda_handler(event, context):
             "lambda_price": lambda_price
         }
 
-        # jsonへと変換
-        json_response = json.dumps(response_data)
+        # # jsonへと変換
+        # json_response = json.dumps(response_data)
 
     else:
         logger.error("リクエストボディがありません。")
-        json_response = json.dumps({"error": "リクエストボディがありません。"})
+        # json_response = json.dumps({"error": "リクエストボディがありません。"})
 
     # WebDriverを閉じる
     browser.quit()
@@ -164,5 +164,5 @@ def lambda_handler(event, context):
         'headers': {
             'Content-Type': 'application/json',
         },
-        'body': json_response
+        'body': response_data
     }

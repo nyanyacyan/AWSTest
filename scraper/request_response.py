@@ -112,3 +112,4 @@ with open('output.csv', 'w', newline='') as csvfile:
     writer.writerow(['JANコード', '商品名', '価格'])
     for jan, (name, price) in goods_status_details.items():
         writer.writerow([jan, name, price])
+    print("CSV書き込み完了")

@@ -20,9 +20,10 @@ def lambda_handler(event, context):
 
     url = "https://www.petpochitto.com/"
 
-    json_response = ""  # 変数の初期化
-
+    # webdriver（Chrome）のオプションを使うことを宣言
     options = webdriver.ChromeOptions()
+
+    # webdriverのどんなオプション使うのかを選定
     options.add_argument("--headless")
     options.add_argument("--disable-gpu")
     options.add_argument("--hide-scrollbars")
@@ -31,12 +32,14 @@ def lambda_handler(event, context):
     options.add_argument("--window-size=1200x1000")  # サイズを大きくすることでsend_keysでの
     options.add_argument("--no-sandbox")
     options.add_argument("--homedir=/tmp")
+
+    # headlessのChromeバージョンを選定
     options.binary_location = "/opt/headless/headless-chromium"
 
     logger.info(f"ブラウザのパスを指定")
 
     browser = webdriver.Chrome(
-        # chromedriverのパスを指定
+        # Chromeを操作できるようにするためのdriverをAWSにあるパスを選定
         executable_path="/opt/headless/chromedriver",
         options=options
     )
@@ -148,12 +151,9 @@ def lambda_handler(event, context):
             "lambda_price": lambda_price
         }
 
-        # # jsonへと変換
-        # json_response = json.dumps(response_data)
 
     else:
         logger.error("リクエストボディがありません。")
-        # json_response = json.dumps({"error": "リクエストボディがありません。"})
 
     # WebDriverを閉じる
     browser.quit()

@@ -7,10 +7,6 @@ from selenium.common.exceptions import TimeoutException
 import logging
 import json
 
-# ローカルデバック時に使用
-# from selenium.webdriver.chrome.service import Service
-# from webdriver_manager.chrome import ChromeDriverManager
-
 
 def lambda_handler(event, context):
     logger = logging.getLogger()
@@ -51,16 +47,9 @@ def lambda_handler(event, context):
 
 
     # リクエストのBODYを取得
-    # テスト用
-    # Lambdaのテストイベントでは、テストイベントのJSONオブジェクト自体が event オブジェクトとして渡されます。そのため、event.get('body') は None を返す
-    
     request_body = event.get('local_jan_code')
 
-    # デプロイ用
-    # request_body = event.get('body')
-
     logger.info("リクエストボディが存在します: %s", request_body)
-
     logger.info("ページロードを待機しています...")
 
     # ページが完全にロードされるのを待つ
@@ -71,9 +60,10 @@ def lambda_handler(event, context):
     logger.info("ページが完全にロードされました。")
 
     if request_body:
+        # jsonファイルの読み込みを実施
+        # 読み込みができなかったらログを残す。
         try:
             request_data = json.loads(request_body)  # jsonを解析
-            # jan = request_data["local_jan_code"]  辞書からjanだけを抽出する
             request_data_str = str(request_data)
             logger.info(f"解析完了: {request_data_str}")
             logger.info("Opened URL: " + url)
@@ -81,6 +71,8 @@ def lambda_handler(event, context):
         except json.JSONDecodeError as e:
             logger.error(f"解析エラー:{e}")
 
+        # "keyword"→最初の要素→name属性の値
+        # 検索バー（IDがkeyword）が見つからなかったらログを残す
         try:
             elements = browser.find_elements_by_id("keyword")
             if elements:
@@ -90,7 +82,6 @@ def lambda_handler(event, context):
                 logger.info(f"Element tag name: {element.tag_name}")
                 logger.info(f"Element name attribute: {name_attribute}")
                 logger.info(f"{request_data_str}")
-                # logger.info(f"request_dataのデータ型: {type(request_data_str)}")
 
             else:
                 logger.info(f"ID:keywordが見つからない")
@@ -99,6 +90,7 @@ def lambda_handler(event, context):
             logger.error(f"設定した時間で見つけられない。")
 
         # テキストボックスに検索ワードを入力
+        # キーワードが入力できなかったらログを残す。
         try:
             if element.is_displayed():
                 element.send_keys(request_data_str)
